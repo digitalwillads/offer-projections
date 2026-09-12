@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New client offer projections</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #ffffff;
+    --surface: #fcfcfb;
+    --ink: #1a1a1a;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --rule: rgba(26,26,26,0.12);
+    --series: #2a78d6;
+    --series-wash: rgba(42,120,214,0.10);
+    --neg: #e34948;
+    --neg-wash: rgba(227,73,72,0.10);
+    --good-text: #006300;
+    --focus: #2a78d6;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+    padding-block: 40px 64px;
+    padding-inline: 20px;
+  }
+  main { max-width: 880px; margin: 0 auto; }
+
+  h1 { font-size: 28px; line-height: 1.2; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 12px; }
+  h2 { font-size: 18px; line-height: 1.3; font-weight: 600; margin: 0 0 12px; }
+  p { margin: 0 0 8px; max-width: 64ch; }
+  .lede { font-size: 17px; color: var(--ink-2); max-width: 60ch; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+  section { padding-block: 28px; border-top: 1px solid var(--rule); }
+  section:first-of-type { border-top: 0; padding-top: 8px; }
+  .note { color: var(--ink-2); font-size: 13px; }
+
+  /* Deal strip */
+  .deal { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 24px; margin-top: 16px; }
+  .deal > div { border-left: 2px solid var(--baseline); padding-left: 12px; }
+  .deal .v { font-size: 22px; font-weight: 600; line-height: 1.2; }
+  .deal .l { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+  .deal .d { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  /* Sliders */
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px 28px; }
+  .ctl label { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--ink-2); gap: 8px; }
+  .ctl output { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; font-size: 15px; }
+  .ctl input[type=range] { width: 100%; margin: 6px 0 0; accent-color: var(--series); height: 24px; }
+  .ctl input[type=range]:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 4px; }
+  button.reset { font: inherit; font-size: 13px; color: var(--ink-2); background: none; border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px; cursor: pointer; margin-top: 16px; }
+  button.reset:hover { color: var(--ink); border-color: var(--baseline); }
+  button.reset:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* Stat tiles */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px 28px; }
+  .stat .v { font-size: 34px; font-weight: 650; line-height: 1.1; letter-spacing: -0.01em; }
+  .stat.hero .v { font-size: 48px; }
+  .stat .l { color: var(--ink-2); font-size: 13px; margin-top: 4px; }
+  .stat .s { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .neg { color: var(--neg); }
+  .pos { color: var(--good-text); }
+
+  /* Chart */
+  .chart-wrap { position: relative; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 8px 4px; }
+  .chart-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .chart-wrap svg { display: block; width: 100%; height: 300px; overflow: visible; }
+  .tip {
+    position: absolute; pointer-events: none; display: none;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--rule);
+    border-radius: 6px; padding: 8px 10px; font-size: 13px; line-height: 1.4;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); min-width: 180px; z-index: 2;
+  }
+  .tip .big { font-size: 16px; font-weight: 650; display: flex; align-items: center; gap: 8px; }
+  .tip .key { display: inline-block; width: 14px; height: 2px; background: var(--series); border-radius: 1px; }
+  .tip .row { color: var(--ink-2); }
+  .tip .row b { color: var(--ink); font-weight: 600; }
+
+  /* Tables */
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  th { color: var(--ink-2); font-weight: 500; font-size: 13px; }
+  th:first-child, td:first-child { text-align: left; }
+  tr.current td { background: var(--series-wash); font-weight: 600; }
+  .table-scroll { overflow-x: auto; }
+  details summary { cursor: pointer; color: var(--ink-2); font-size: 14px; padding: 4px 0; }
+  details summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+  details[open] summary { margin-bottom: 12px; }
+
+  @media (max-width: 640px) {
+    .deal { grid-template-columns: 1fr; gap: 16px; }
+    .stat.hero .v { font-size: 40px; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .tip { transition: opacity 80ms linear; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <section>
+    <h1>The $5,000 offer, in numbers</h1>
+    <p class="lede">We give a new client <strong>$2,000 of ad spend</strong> and the <strong>first month of work free</strong>. To them that is $5,000 of value. It costs us <span id="ledeCost">$2,600 when it works and $1,100 when we bail early</span>. If it works, they pay <strong>$9,000 upfront</strong> for the next 3 months.</p>
+    <div class="deal">
+      <div><div class="v">$5,000</div><div class="l">What the client gets</div><div class="d">$2,000 ad spend plus $3,000 of labor</div></div>
+      <div><div class="v" id="dealCost">$1,100 to $2,600</div><div class="l">What one trial costs us</div><div class="d" id="dealCostD">$500 in ads if we bail, $2,000 if it works, plus $600 labor either way, plus $500 of marketing to get the trial</div></div>
+      <div><div class="v" id="dealWin">$6,450</div><div class="l">What one conversion earns us</div><div class="d" id="dealWinD">$9,000 in, minus $1,350 commission, minus 3 months of servicing at $400</div></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-assume">
+    <h2 id="h-assume">Assumptions</h2>
+    <div class="controls" id="controls">
+      <div class="ctl"><label for="trials">Trials started per month <output for="trials" id="o-trials"></output></label><input type="range" id="trials" min="1" max="30" step="1" value="4"></div>
+      <div class="ctl"><label for="marketing">Marketing spend per new trial started <output for="marketing" id="o-marketing"></output></label><input type="range" id="marketing" min="0" max="5000" step="50" value="500"></div>
+      <div class="ctl"><label for="conv">Share that converts <output for="conv" id="o-conv"></output></label><input type="range" id="conv" min="0" max="100" step="5" value="40"></div>
+      <div class="ctl"><label for="adCash">Ad spend we fund per trial <output for="adCash" id="o-adCash"></output></label><input type="range" id="adCash" min="0" max="5000" step="250" value="2000"></div>
+      <div class="ctl"><label for="bail">Ad spend before we bail <output for="bail" id="o-bail"></output></label><input type="range" id="bail" min="0" max="2000" step="50" value="500"></div>
+      <div class="ctl"><label for="labor">Our labor cost for the free month <output for="labor" id="o-labor"></output></label><input type="range" id="labor" min="0" max="3000" step="100" value="600"></div>
+      <div class="ctl"><label for="ongoing">Ongoing cost per client per month <output for="ongoing" id="o-ongoing"></output></label><input type="range" id="ongoing" min="0" max="3000" step="50" value="400"></div>
+      <div class="ctl"><label for="commit">3-month commit, paid upfront <output for="commit" id="o-commit"></output></label><input type="range" id="commit" min="3000" max="15000" step="500" value="9000"></div>
+      <div class="ctl"><label for="commission">Sales commission on the commit <output for="commission" id="o-commission"></output></label><input type="range" id="commission" min="0" max="30" step="1" value="15"></div>
+      <div class="ctl"><label for="stay">Share that stays after the 3 months <output for="stay" id="o-stay"></output></label><input type="range" id="stay" min="0" max="100" step="10" value="50"></div>
+      <div class="ctl"><label for="churn">Monthly churn after the 3 months <output for="churn" id="o-churn"></output></label><input type="range" id="churn" min="0" max="30" step="1" value="5"></div>
+    </div>
+    <button class="reset" id="reset" type="button">Reset to defaults</button>
+    <p class="note" style="margin-top:12px">Marketing spend is what it costs to bring in one new trial, paid in the month the trial starts. Clients that stay pay one third of the commit price each month, and each month after that the group shrinks by the churn rate. A trial that will not work stops early: we spend the bail amount on ads, not the full ad spend. The free month costs the labor amount either way. Every month after that costs the ongoing amount. Sales commission is paid in the month the client pays the commit. Per the 2026-08-04 structure it is 25% of the first paid month plus 10% of months 2 and 3, which is 15% of a $9,000 commit; on a sale Will closes it is 17%. No commission after month 3.</p>
+  </section>
+
+  <section aria-labelledby="h-results">
+    <h2 id="h-results">What it comes to</h2>
+    <div class="stats">
+      <div class="stat hero"><div class="v" id="breakEven"></div><div class="l">Break-even conversion rate</div><div class="s">Below this, every trial loses money</div></div>
+      <div class="stat"><div class="v" id="evTrial"></div><div class="l">Expected profit per trial</div><div class="s">Through the 3-month commit</div></div>
+      <div class="stat"><div class="v" id="yearProfit"></div><div class="l">Year-one cash result</div><div class="s" id="yearProfitS"></div></div>
+      <div class="stat"><div class="v" id="dip"></div><div class="l">Deepest cash dip</div><div class="s" id="dipS"></div></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-chart">
+    <h2 id="h-chart">Cumulative cash over 12 months</h2>
+    <p class="note" style="margin-bottom:12px">Trials start every month. Each one costs money first and pays later, so cash dips before it turns. Trials started late in the year have not paid yet, so the 12-month total is conservative.</p>
+    <div class="chart-wrap" id="chartWrap" tabindex="0" role="img" aria-label="Line chart of cumulative cash by month. Use the arrow keys to read each month.">
+      <svg id="chart" aria-hidden="true"></svg>
+      <div class="tip" id="tip"></div>
+    </div>
+    <details style="margin-top:12px">
+      <summary>Month by month table</summary>
+      <div class="table-scroll">
+        <table id="monthTable">
+          <thead><tr><th>Month</th><th>Trials started</th><th>Commits paid</th><th>Retained clients</th><th>Active clients</th><th>Cash in</th><th>Cash out</th><th>Net</th><th>Cumulative</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <section aria-labelledby="h-sens">
+    <h2 id="h-sens">How much the conversion rate matters</h2>
+    <p class="note" style="margin-bottom:12px">Everything else as set above. The highlighted row is the current slider value.</p>
+    <div class="table-scroll">
+      <table id="sensTable">
+        <thead><tr><th>Conversion rate</th><th>Profit per trial</th><th>Year-one cash result</th><th>Deepest cash dip</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+  const H = 12;
+  const DEFAULTS = { trials: 4, marketing: 500, conv: 40, adCash: 2000, bail: 500, labor: 600, ongoing: 400, commit: 9000, commission: 15, stay: 50, churn: 5 };
+  const ids = Object.keys(DEFAULTS);
+  const $ = (id) => document.getElementById(id);
+
+  const fmtMoney = (n) => {
+    const r = Math.round(n);
+    const s = '$' + Math.abs(r).toLocaleString('en-US');
+    return r < 0 ? '−' + s : s;
+  };
+  const fmtSigned = (n) => (Math.round(n) > 0 ? '+' : '') + fmtMoney(n);
+  const fmtAxis = (n) => {
+    if (Math.abs(n) < 1000) return fmtMoney(n);
+    const k = n / 1000;
+    const s = '$' + (Number.isInteger(k) ? Math.abs(k) : Math.abs(k).toFixed(1)) + 'k';
+    return n < 0 ? '−' + s : s;
+  };
+  const fmtPct = (x) => Math.round(x * 100) + '%';
+  const fmtCount = (n) => (Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : n.toFixed(1));
+
+  function readParams() {
+    return {
+      trials: +$('trials').value,
+      marketing: +$('marketing').value,
+      conv: +$('conv').value / 100,
+      adCash: +$('adCash').value,
+      bail: Math.min(+$('bail').value, +$('adCash').value),
+      labor: +$('labor').value,
+      ongoing: +$('ongoing').value,
+      commit: +$('commit').value,
+      commission: +$('commission').value / 100,
+      stay: +$('stay').value / 100,
+      churn: +$('churn').value / 100,
+    };
+  }
+
+  // Cohort model. Every month a batch of trials starts. In the trial month a
+  // trial that converts costs (adCash + labor); one that will not work is
+  // stopped early and costs (bail + labor). Converts pay the commit in the next
+  // month and cost the ongoing amount for 3 months. A share of converts then
+  // stays month to month at commit/3, still costing the ongoing amount.
+  // Expected values, so counts can be fractional.
+  function model(p) {
+    const t0 = performance.now();
+    const months = Array.from({ length: H }, (_, i) => ({ m: i + 1, trials: 0, paid: 0, inCommit: 0, retained: 0, cashIn: 0, cashOut: 0 }));
+    for (let start = 1; start <= H; start++) {
+      const n = p.trials;
+      months[start - 1].trials += n;
+      months[start - 1].cashOut += n * (p.marketing + p.conv * p.adCash + (1 - p.conv) * p.bail + p.labor);
+      const conv = n * p.conv;
+      if (start + 1 <= H) {
+        months[start].paid += conv;
+        months[start].cashIn += conv * p.commit;
+        months[start].cashOut += conv * p.commit * p.commission;  // sales commission, same month
+      }
+      for (let k = 1; k <= 3; k++) {
+        const mm = start + k;
+        if (mm <= H) { months[mm - 1].inCommit += conv; months[mm - 1].cashOut += conv * p.ongoing; }
+      }
+      // Retained clients start at the stay share, then shrink by the churn
+      // rate every month after the first retained month.
+      for (let mm = start + 4; mm <= H; mm++) {
+        const alive = conv * p.stay * Math.pow(1 - p.churn, mm - (start + 4));
+        months[mm - 1].retained += alive;
+        months[mm - 1].cashIn += alive * (p.commit / 3);
+        months[mm - 1].cashOut += alive * p.ongoing;
+      }
+    }
+    let cum = 0, minCum = 0, minMonth = 0;
+    for (const r of months) { r.active = r.trials + r.inCommit + r.retained; r.net = r.cashIn - r.cashOut; cum += r.net; r.cum = cum; if (cum < minCum) { minCum = cum; minMonth = r.m; } }
+    const out = { months, yearProfit: cum, minCum, minMonth };
+    console.log('[model] computed in', (performance.now() - t0).toFixed(2), 'ms', { yearProfit: Math.round(cum), minCum: Math.round(minCum), minMonth });
+    return out;
+  }
+
+  function unit(p) {
+    const mktPerTrial = p.marketing;             // what it took to get the trial
+    const costWin = p.adCash + p.labor;          // a trial that converts
+    const costBail = p.bail + p.labor;           // a trial we stop early
+    const winContribution = p.commit * (1 - p.commission) - 3 * p.ongoing;
+    // EV(p) = -(p*costWin + (1-p)*costBail + mktPerTrial) + p*win. Zero at:
+    const denom = winContribution - costWin + costBail;
+    const breakEven = denom > 0 ? (costBail + mktPerTrial) / denom : Infinity;
+    const trialCost = p.conv * costWin + (1 - p.conv) * costBail + mktPerTrial;
+    const evTrial = -trialCost + p.conv * winContribution;
+    return { mktPerTrial, costWin, costBail, trialCost, winContribution, breakEven, evTrial };
+  }
+
+  // ---------- chart ----------
+  const svg = $('chart'), wrap = $('chartWrap'), tip = $('tip');
+  const NS = 'http://www.w3.org/2000/svg';
+  // fill/stroke go through style so CSS variables resolve live and the
+  // chart follows a theme change without a redraw.
+  const el = (name, attrs, parent) => {
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) {
+      if ((k === 'fill' || k === 'stroke') && String(attrs[k]).startsWith('var(')) e.style[k] = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    }
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  let chartState = null; // {xs, ys, months, m}
+  let focusMonth = null;
+
+  function niceTicks(lo, hi, count) {
+    const span = hi - lo || 1;
+    const raw = span / count;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw / mag;
+    const step = (norm < 1.5 ? 1 : norm < 3.5 ? 2.5 : norm < 7.5 ? 5 : 10) * mag;
+    const ticks = [];
+    for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) ticks.push(Math.round(v * 1e6) / 1e6);
+    return ticks;
+  }
+
+  function drawChart(res) {
+    const t0 = performance.now();
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const W = svg.clientWidth || 800, Hh = 300;
+    svg.setAttribute('viewBox', `0 0 ${W} ${Hh}`);
+    const m = { top: 16, right: 20, bottom: 28, left: 64 };
+    const iw = W - m.left - m.right, ih = Hh - m.top - m.bottom;
+    const cums = res.months.map(r => r.cum);
+    let lo = Math.min(0, ...cums), hi = Math.max(0, ...cums);
+    if (hi - lo < 1) { hi = lo + 1; }
+    const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    const ticks = niceTicks(lo, hi, 5);
+    const x = (mm) => m.left + (mm - 1) / (H - 1) * iw;
+    const y = (v) => m.top + (hi - v) / (hi - lo) * ih;
+    const c = (name) => `var(${name})`;
+
+    const g = el('g', {}, svg);
+    for (const t of ticks) {
+      el('line', { x1: m.left, x2: m.left + iw, y1: y(t), y2: y(t), stroke: t === 0 ? c('--baseline') : c('--grid'), 'stroke-width': 1, 'shape-rendering': 'crispEdges' }, g);
+      const lab = el('text', { x: m.left - 8, y: y(t) + 4, 'text-anchor': 'end', 'font-size': 12, fill: c('--muted'), style: 'font-variant-numeric: tabular-nums' }, g);
+      lab.textContent = fmtAxis(t);
+    }
+    for (let mm = 1; mm <= H; mm++) {
+      const lab = el('text', { x: x(mm), y: Hh - 8, 'text-anchor': 'middle', 'font-size': 12, fill: c('--muted') }, g);
+      lab.textContent = mm === 1 ? 'Month 1' : String(mm);
+    }
+
+    // area washes: blue above zero, red below, split by clipPaths
+    const yZero = y(0);
+    const defs = el('defs', {}, svg);
+    const cpA = el('clipPath', { id: 'clipAbove' }, defs);
+    el('rect', { x: 0, y: 0, width: W, height: Math.max(0, yZero) }, cpA);
+    const cpB = el('clipPath', { id: 'clipBelow' }, defs);
+    el('rect', { x: 0, y: yZero, width: W, height: Math.max(0, Hh - yZero) }, cpB);
+    let area = `M${x(1)},${yZero}`;
+    res.months.forEach(r => { area += ` L${x(r.m)},${y(r.cum)}`; });
+    area += ` L${x(H)},${yZero} Z`;
+    el('path', { d: area, fill: c('--series-wash'), 'clip-path': 'url(#clipAbove)' }, svg);
+    el('path', { d: area, fill: c('--neg-wash'), 'clip-path': 'url(#clipBelow)' }, svg);
+
+    // line
+    const d = res.months.map((r, i) => (i ? 'L' : 'M') + x(r.m) + ',' + y(r.cum)).join(' ');
+    el('path', { d, fill: 'none', stroke: c('--series'), 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
+    // markers with surface ring
+    res.months.forEach(r => {
+      el('circle', { cx: x(r.m), cy: y(r.cum), r: 4, fill: c('--series'), stroke: c('--surface'), 'stroke-width': 2 }, svg);
+    });
+    // selective direct labels: end value, and the dip if it is below zero
+    const labelAt = (r, dy, anchor) => {
+      const t = el('text', { x: x(r.m), y: y(r.cum) + dy, 'text-anchor': anchor, 'font-size': 12, 'font-weight': 600, fill: c('--ink'), style: 'font-variant-numeric: tabular-nums' }, svg);
+      t.textContent = fmtMoney(r.cum);
+    };
+    const last = res.months[H - 1];
+    labelAt(last, last.cum >= 0 ? -10 : 18, 'end');
+    if (res.minCum < 0 && res.minMonth !== H) labelAt(res.months[res.minMonth - 1], 18, 'middle');
+
+    // crosshair + hit layer
+    const cross = el('line', { x1: 0, x2: 0, y1: m.top, y2: m.top + ih, stroke: c('--baseline'), 'stroke-width': 1, visibility: 'hidden', 'shape-rendering': 'crispEdges' }, svg);
+    const hit = el('rect', { x: m.left - 20, y: 0, width: iw + 40, height: Hh, fill: 'transparent' }, svg);
+    chartState = { x, y, m, iw, W, Hh, cross, res };
+    hit.addEventListener('pointermove', (ev) => {
+      const rect = svg.getBoundingClientRect();
+      const px = (ev.clientX - rect.left) * (W / rect.width);
+      const mm = Math.min(H, Math.max(1, Math.round((px - m.left) / iw * (H - 1) + 1)));
+      showMonth(mm, false);
+    });
+    hit.addEventListener('pointerleave', () => { if (focusMonth === null) hideTip(); });
+    if (focusMonth !== null) showMonth(focusMonth, true);
+    console.log('[chart] drawn', W + 'x' + Hh, 'in', (performance.now() - t0).toFixed(2), 'ms');
+  }
+
+  function showMonth(mm, sticky) {
+    if (!chartState) return;
+    const { x, y, cross, res, W, m, iw } = chartState;
+    const r = res.months[mm - 1];
+    cross.setAttribute('x1', x(mm)); cross.setAttribute('x2', x(mm)); cross.setAttribute('visibility', 'visible');
+    while (tip.firstChild) tip.removeChild(tip.firstChild);
+    const big = document.createElement('div'); big.className = 'big';
+    const key = document.createElement('span'); key.className = 'key'; big.appendChild(key);
+    big.appendChild(document.createTextNode(fmtMoney(r.cum) + ' cumulative'));
+    tip.appendChild(big);
+    const rows = [
+      ['Month ' + mm, ''],
+      ['Net this month', fmtSigned(r.net)],
+      ['Trials started', fmtCount(r.trials)],
+      ['Commits paid', fmtCount(r.paid)],
+      ['Retained clients', fmtCount(r.retained)],
+      ['Active clients', fmtCount(r.active)],
+    ];
+    for (const [k, v] of rows) {
+      const d = document.createElement('div'); d.className = 'row';
+      if (v === '') { d.textContent = k; }
+      else { const b = document.createElement('b'); b.textContent = v; d.appendChild(b); d.appendChild(document.createTextNode(' ' + k.charAt(0).toLowerCase() + k.slice(1))); }
+      tip.appendChild(d);
+    }
+    tip.style.display = 'block';
+    const wrapRect = wrap.getBoundingClientRect();
+    const svgRect = svg.getBoundingClientRect();
+    const scale = svgRect.width / W;
+    let left = svgRect.left - wrapRect.left + x(mm) * scale + 12;
+    if (left + tip.offsetWidth > wrapRect.width - 8) left = svgRect.left - wrapRect.left + x(mm) * scale - tip.offsetWidth - 12;
+    let top = svgRect.top - wrapRect.top + y(r.cum) * scale - tip.offsetHeight / 2;
+    top = Math.max(4, Math.min(wrapRect.height - tip.offsetHeight - 4, top));
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+    if (sticky) focusMonth = mm;
+  }
+  function hideTip() { tip.style.display = 'none'; if (chartState) chartState.cross.setAttribute('visibility', 'hidden'); }
+
+  wrap.addEventListener('keydown', (ev) => {
+    if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
+      ev.preventDefault();
+      const cur = focusMonth === null ? (ev.key === 'ArrowRight' ? 0 : H + 1) : focusMonth;
+      const next = Math.min(H, Math.max(1, cur + (ev.key === 'ArrowRight' ? 1 : -1)));
+      showMonth(next, true);
+    } else if (ev.key === 'Escape') { focusMonth = null; hideTip(); }
+  });
+  wrap.addEventListener('focus', () => { if (focusMonth === null) showMonth(1, true); });
+  wrap.addEventListener('blur', () => { focusMonth = null; hideTip(); });
+
+  // ---------- tables ----------
+  function fillMonthTable(res) {
+    const tb = $('monthTable').querySelector('tbody');
+    while (tb.firstChild) tb.removeChild(tb.firstChild);
+    for (const r of res.months) {
+      const tr = document.createElement('tr');
+      const cells = [String(r.m), fmtCount(r.trials), fmtCount(r.paid), fmtCount(r.retained), fmtCount(r.active), fmtMoney(r.cashIn), fmtMoney(r.cashOut), fmtSigned(r.net), fmtMoney(r.cum)];
+      cells.forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i >= 7) td.className = (i === 7 ? r.net : r.cum) < 0 ? 'neg' : ''; tr.appendChild(td); });
+      tb.appendChild(tr);
+    }
+  }
+
+  function fillSensitivity(p) {
+    const tb = $('sensTable').querySelector('tbody');
+    while (tb.firstChild) tb.removeChild(tb.firstChild);
+    const rates = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7];
+    const cur = Math.round(p.conv * 100);
+    let nearest = rates.reduce((a, b) => Math.abs(b * 100 - cur) < Math.abs(a * 100 - cur) ? b : a);
+    for (const rate of rates) {
+      const q = Object.assign({}, p, { conv: rate });
+      const u = unit(q), r = model(q);
+      const tr = document.createElement('tr');
+      if (rate === nearest) tr.className = 'current';
+      const cells = [fmtPct(rate), fmtSigned(u.evTrial), fmtSigned(r.yearProfit), r.minCum < 0 ? fmtMoney(r.minCum) : 'none'];
+      cells.forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i === 1 && u.evTrial < 0) td.className = 'neg'; if (i === 2 && r.yearProfit < 0) td.className = 'neg'; tr.appendChild(td); });
+      tb.appendChild(tr);
+    }
+  }
+
+  // ---------- render ----------
+  function render() {
+    const t0 = performance.now();
+    const p = readParams();
+    $('o-trials').textContent = p.trials + (p.trials === 1 ? ' trial' : ' trials');
+    $('o-marketing').textContent = fmtMoney(p.marketing);
+    $('o-conv').textContent = fmtPct(p.conv);
+    $('o-adCash').textContent = fmtMoney(p.adCash);
+    $('o-bail').textContent = fmtMoney(p.bail);
+    $('o-labor').textContent = fmtMoney(p.labor);
+    $('o-ongoing').textContent = fmtMoney(p.ongoing);
+    $('o-commit').textContent = fmtMoney(p.commit);
+    $('o-commission').textContent = Math.round(p.commission * 100) + '% (' + fmtMoney(p.commit * p.commission) + ')';
+    $('o-stay').textContent = fmtPct(p.stay);
+    $('o-churn').textContent = fmtPct(p.churn) + ' a month';
+
+    const u = unit(p);
+    $('dealCost').textContent = fmtMoney(u.costBail) + ' to ' + fmtMoney(u.costWin);
+    $('dealCostD').textContent = fmtMoney(p.bail) + ' in ads if we bail, ' + fmtMoney(p.adCash) + ' if it works, plus ' + fmtMoney(p.labor) + ' labor either way, plus ' + fmtMoney(u.mktPerTrial) + ' of marketing to get the trial';
+    $('ledeCost').textContent = fmtMoney(u.costWin) + ' when it works and ' + fmtMoney(u.costBail) + ' when we bail early';
+    $('dealWin').textContent = fmtMoney(u.winContribution);
+    $('dealWinD').textContent = fmtMoney(p.commit) + ' in, minus ' + fmtMoney(p.commit * p.commission) + ' commission, minus 3 months of servicing at ' + fmtMoney(p.ongoing);
+
+    const be = $('breakEven');
+    if (!isFinite(u.breakEven)) { be.textContent = 'Never'; be.className = 'v neg'; }
+    else { be.textContent = fmtPct(u.breakEven); be.className = 'v ' + (p.conv >= u.breakEven ? 'pos' : 'neg'); }
+
+    const ev = $('evTrial'); ev.textContent = fmtSigned(u.evTrial); ev.className = 'v ' + (u.evTrial < 0 ? 'neg' : 'pos');
+
+    const res = model(p);
+    const yp = $('yearProfit'); yp.textContent = fmtSigned(res.yearProfit); yp.className = 'v ' + (res.yearProfit < 0 ? 'neg' : 'pos');
+    $('yearProfitS').textContent = (p.trials * H) + ' trials started, cash through month 12';
+    const dip = $('dip');
+    if (res.minCum < 0) { dip.textContent = fmtMoney(res.minCum); dip.className = 'v neg'; $('dipS').textContent = 'Lowest point, month ' + res.minMonth + '. Cash you need to float.'; }
+    else { dip.textContent = 'None'; dip.className = 'v pos'; $('dipS').textContent = 'Cash never goes below zero'; }
+
+    drawChart(res);
+    fillMonthTable(res);
+    fillSensitivity(p);
+    console.log('[render] params', p, 'breakEven', u.breakEven.toFixed(3), 'in', (performance.now() - t0).toFixed(1), 'ms');
+  }
+
+  ids.forEach(id => $(id).addEventListener('input', render));
+  $('adCash').addEventListener('input', () => { $('bail').max = $('adCash').value; });
+  $('reset').addEventListener('click', () => { ids.forEach(id => { $(id).value = DEFAULTS[id]; }); console.log('[reset] defaults restored'); render(); });
+  let raf = null;
+  window.addEventListener('resize', () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { if (chartState) drawChart(chartState.res); }); });
+
+  render();
+})();
+</script>
+</body>
+</html>
